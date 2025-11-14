@@ -1,105 +1,88 @@
 package common
 
 import (
-	"context"
-	"crypto/tls"
-	"net"
-	"net/http"
-	"time"
-
-	"github.com/harindhranathreddy09-boop/GoBaeBounty/internal/ratelimit"
+    "bytes"
+    "context"
+    "crypto/tls"
+    "io"
+    "net"
+    "net/http"
+    "time"
 )
 
-// HTTPClient wraps http.Client with rate limiting and concurrency control
+type Limiter interface {
+    Wait(context.Context) error
+    Release()
+}
+
+// HTTPClient wraps http.Client with rate limiting and custom configuration
 type HTTPClient struct {
-	client  *http.Client
-	limiter *ratelimit.Limiter
-	config  *Config
+    client  http.Client
+    limiter Limiter
+    config  Config
 }
 
-// NewHTTPClient creates an HTTP client with reasonable defaults
-func NewHTTPClient(config *Config) *HTTPClient {
-	tr := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-			MinVersion:         tls.VersionTLS12,
-		},
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-
-	client := &http.Client{
-		Timeout:   30 * time.Second,
-		Transport: tr,
-	}
-
-	return &HTTPClient{
-		client:  client,
-		limiter: config.Limiter,
-		config:  config,
-	}
+func NewHTTPClient(config Config) HTTPClient {
+    tr := &http.Transport{
+        DialContext: (&net.Dialer{
+            Timeout:   10 * time.Second,
+            KeepAlive: 30 * time.Second,
+        }).DialContext,
+        MaxIdleConns:        100,
+        MaxIdleConnsPerHost: 10,
+        IdleConnTimeout:     90 * time.Second,
+        TLSClientConfig:     &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12},
+        TLSHandshakeTimeout: 10 * time.Second,
+    }
+    client := http.Client{
+        Timeout:   30 * time.Second,
+        Transport: tr,
+    }
+    return HTTPClient{client: client, limiter: config.Limiter, config: config}
 }
 
-// Do performs an HTTP request with rate limiting and concurrency control
-func (h *HTTPClient) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
-	if err := h.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-	defer h.limiter.Release()
-
-	h.addDefaultHeaders(req)
-
-	req = req.WithContext(ctx)
-	return h.client.Do(req)
+func (h HTTPClient) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+    if err := h.limiter.Wait(ctx); err != nil {
+        return nil, err
+    }
+    defer h.limiter.Release()
+    req = req.WithContext(ctx)
+    h.addHeaders(req)
+    return h.client.Do(req)
 }
 
-// Get performs HTTP GET request
-func (h *HTTPClient) Get(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	return h.Do(ctx, req)
+func (h HTTPClient) Get(ctx context.Context, url string) (*http.Response, error) {
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+    if err != nil {
+        return nil, err
+    }
+    return h.Do(ctx, req)
 }
 
-// Post performs HTTP POST request with content type and body
-func (h *HTTPClient) Post(ctx context.Context, url, contentType string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", contentType)
-	return h.Do(ctx, req)
+func (h HTTPClient) Post(ctx context.Context, url, contentType string, body []byte) (*http.Response, error) {
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+    if err != nil {
+        return nil, err
+    }
+    req.Header.Set("Content-Type", contentType)
+    return h.Do(ctx, req)
 }
 
-// Head performs HTTP HEAD request
-func (h *HTTPClient) Head(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequest("HEAD", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	return h.Do(ctx, req)
+// Add headers, cookies, etc. to request as needed
+func (h HTTPClient) addHeaders(req *http.Request) {
+    if req.Header.Get("User-Agent") == "" {
+        req.Header.Set("User-Agent", "GoBaeBounty1.0 https://github.com/harindhranathreddy09-boop/GoBaeBounty")
+    }
+    // Add custom headers and cookies as needed from config...
 }
 
-// addDefaultHeaders adds custom and default headers
-func (h *HTTPClient) addDefaultHeaders(req *http.Request) {
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "GoBaeBounty/1.0 (https://github.com/harindhranathreddy09-boop/GoBaeBounty)")
-	}
-	if h.config.CustomHeaders != nil {
-		for k, v := range h.config.CustomHeaders {
-			req.Header.Set(k, v)
-		}
-	}
-	if h.config.Cookies != nil {
-		for k, v := range h.config.Cookies {
-			req.AddCookie(&http.Cookie{Name: k, Value: v})
-		}
-	}
+// Helpers for reading response bodies
+func ReadResponseBody(resp *http.Response) ([]byte, error) {
+    defer resp.Body.Close()
+    return io.ReadAll(resp.Body)
+}
+
+func ReadResponseBodyLimited(resp *http.Response, maxSize int64) ([]byte, error) {
+    defer resp.Body.Close()
+    return io.ReadAll(io.LimitReader(resp.Body, maxSize))
 }
