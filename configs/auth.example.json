@@ -1,0 +1,14 @@
+{
+  "target": "example.com",
+  "auth_token": "auth_1234567890abcdef",
+  "signature": "REPLACE_WITH_SIGNATURE",
+  "issued_by": "Security Team",
+  "issued_at": "2025-11-15T00:00:00Z",
+  "expires_at": "2026-11-15T00:00:00Z",
+  "program_url": "https://hackerone.com/example",
+  "scope": [
+    "example.com",
+    "*.example.com"
+  ],
+  "version": 1
+}
