@@ -46,4 +46,14 @@ func IsJavaScriptFile(rawURL string) bool {
     return re.MatchString(rawURL)
 }
 
+// IsInScope returns true if the provided host is within allowed scope (add your logic)
+func IsInScope(host string, scope []string) bool {
+    // Example: simple check, update as needed
+    for _, s := range scope {
+        if host == s || strings.HasSuffix(host, "."+s) {
+            return true
+        }
+    }
+    return false
+}
 // Add any remaining utility functions here...
