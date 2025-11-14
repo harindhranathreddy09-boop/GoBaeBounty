@@ -103,4 +103,3 @@ func (h *HTTPClient) addDefaultHeaders(req *http.Request) {
 		}
 	}
 }
-v
