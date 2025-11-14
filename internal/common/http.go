@@ -1,20 +1,19 @@
 package common
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
-	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/harindhranathreddy09-boop/GoBaeBounty/internal/ratelimit"
 )
 
 // HTTPClient wraps http.Client with rate limiting and concurrency control
 type HTTPClient struct {
 	client  *http.Client
-	limiter *Limiter
+	limiter *ratelimit.Limiter
 	config  *Config
 }
 
@@ -71,7 +70,7 @@ func (h *HTTPClient) Get(ctx context.Context, url string) (*http.Response, error
 
 // Post performs HTTP POST request with content type and body
 func (h *HTTPClient) Post(ctx context.Context, url, contentType string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -104,3 +103,4 @@ func (h *HTTPClient) addDefaultHeaders(req *http.Request) {
 		}
 	}
 }
+v
