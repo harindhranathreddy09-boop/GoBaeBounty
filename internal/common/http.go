@@ -86,3 +86,10 @@ func ReadResponseBodyLimited(resp *http.Response, maxSize int64) ([]byte, error)
     defer resp.Body.Close()
     return io.ReadAll(io.LimitReader(resp.Body, maxSize))
 }
+func (h HTTPClient) Head(ctx context.Context, url string) (*http.Response, error) {
+    req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+    if err != nil {
+        return nil, err
+    }
+    return h.Do(ctx, req)
+}
