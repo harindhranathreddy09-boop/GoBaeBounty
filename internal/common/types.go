@@ -152,16 +152,3 @@ func (vr *VulnResults) CountBySeverity(sev string) int {
 	}
 	return count
 }
-
-// Deduplicate string slice
-func Deduplicate(items []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-	for _, item := range items {
-		if !seen[item] {
-			result = append(result, item)
-			seen[item] = true
-		}
-	}
-	return result
-}
