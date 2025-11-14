@@ -1,0 +1,58 @@
+# Configuration example for GoBaeBounty
+
+target: example.com
+
+workers: 50                # Number of concurrent workers
+max_rate: 100              # Max HTTP requests per second
+crawl_depth: 3             # Depth for recursive crawling
+ignore_robots: false       # Whether to ignore robots.txt rules
+intrusive: false           # Enable intrusive vulnerability checks (dangerous)
+verbose: false             # Enable verbose logging
+
+wordlists:
+  - ./pkg/wordlists/common.txt
+  - ./pkg/wordlists/admin.txt
+  - ./pkg/wordlists/api.txt
+
+fuzzing:
+  enabled: true
+  param_names:
+    - id
+    - user
+    - token
+    - page
+  payloads:
+    - "' OR '1'='1"
+    - "<script>alert(1)</script>"
+    - "../../../etc/passwd"
+  recursion_depth: 2
+  status_codes_allow:
+    - 200
+    - 301
+    - 302
+    - 403
+
+http:
+  timeout: 30s
+  user_agent: "GoBaeBounty/1.0"
+
+rate_limit:
+  global: 100
+  per_domain: 50
+  burst: 20
+
+external_tools:
+  waybackurls: true
+  gau: true
+  ffuf: true
+  nuclei: false
+  sqlmap: false
+
+report:
+  formats:
+    - json
+    - markdown
+  cvss_version: "3.1"
+  include_poc: true
+  minimum_severity: "low"
+  hackerone_format: true
